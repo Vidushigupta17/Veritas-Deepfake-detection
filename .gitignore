@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+models/*.task
+models/*.joblib
+data/
+features.csv
+results.csv
+*.avi
+*.mp4
+*.mov
+*.zip
