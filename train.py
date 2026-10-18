@@ -32,12 +32,16 @@ def main():
     ap.add_argument("--method", default="green", choices=["green", "chrom", "pos"])
     ap.add_argument("--classifier", default="logreg", choices=["logreg", "svm"])
     ap.add_argument("--group-by", default="person", choices=["person", "source"])
+    ap.add_argument("--window", type=float, default=10.0, help="window length in s (use 5 for ~11 s clips)")
+    ap.add_argument("--stride", type=float, default=5.0, help="stride in s (use 2.5 with --window 5)")
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--compress-crf", type=int, default=None, help="re-encode every video with H.264 at this CRF first")
+    ap.add_argument("--save-model", default="best", choices=["best", "A_global", "B_local", "C_combined"],
+                    help="which model to save; A_global is the baseline (global heart-rate features only)")
     ap.add_argument("--out", default="models/veritas_model.joblib")
     a = ap.parse_args()
 
-    cfg = Config(method=a.method, max_frames=a.max_frames)
+    cfg = Config(method=a.method, max_frames=a.max_frames, window_sec=a.window, stride_sec=a.stride)
     if not os.path.exists(a.manifest):
         raise SystemExit(f"Manifest not found: {a.manifest}")
     man = pd.read_csv(a.manifest)
@@ -68,11 +72,12 @@ def main():
     print(res.round(3).to_string(index=False))
     res.to_csv("results.csv", index=False)
 
-    best = res.sort_values("video_auc", ascending=False).iloc[0].model
+    best = (res.sort_values("video_auc", ascending=False).iloc[0].model
+            if a.save_model == "best" else a.save_model)
     cols = MODELS[best]
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     joblib.dump({"model": fit_final(df, cols, a.classifier), "cols": cols, "name": best, "cfg": cfg}, a.out)
-    print(f"\nSaved '{best}' -> {a.out}  (best by video AUC; report all three regardless)")
+    print(f"\nSaved '{best}' -> {a.out}  (report all three models regardless)")
 
 
 if __name__ == "__main__":
